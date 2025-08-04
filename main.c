@@ -16,7 +16,7 @@
 
 struct chip8_t {
     uint8_t memory[4096];
-    uint16_t V[16];
+    uint8_t V[16];
 
     uint16_t stack[16];
     uint16_t stack_pointer;
@@ -91,20 +91,20 @@ void inst_dxyn(struct chip8_t* chip8) {
     chip8->V[0xF] = 0;
 
     for (int row = 0; row < height ; row++){ 
-        if (y_crd + row > SCREEN_HEIGTH) {
+        uint8_t sprite = chip8->memory[(chip8->I) + row];
+        current_y = (y_crd + row);
+        if ( current_y >= SCREEN_HEIGTH) {
             break;
         }
-        uint8_t sprite = chip8->memory[(chip8->I) + row];
         for (uint8_t px_count= 0; px_count < 8; px_count++) {
             current_x = (x_crd + px_count);
-            current_y = (y_crd + row);
 
-            uint8_t display_index = current_y * SCREEN_WIDTH + current_x;
-            uint8_t current_px = chip8->framebuffer[display_index];
-
-            if (current_x > SCREEN_WIDTH) {
+            if (current_x >= SCREEN_WIDTH) {
                 break;
             }
+
+            uint16_t display_index = current_y * SCREEN_WIDTH + current_x;
+            uint8_t current_px = chip8->framebuffer[display_index];
 
             if (sprite & (0x80 >> px_count)){
                 if (current_px == true) {
@@ -195,18 +195,18 @@ int main(int argc, char* argv[]){
     while (!WindowShouldClose()) {
         BeginDrawing();
         ClearBackground(BLACK);
-        for (int clock_count = 0; clock_count < 39; clock_count++){
+        for (int clock_count = 0; clock_count < 15; clock_count++){
             chip8_cycle(&chip8);
-            for (int y = 0; y < SCREEN_HEIGTH; y++) {
-                for (int x = 0; x < SCREEN_WIDTH; x++) {
-                    uint16_t display_index = y * SCREEN_WIDTH + x;
-                    if (chip8.framebuffer[display_index] == true) {
-                        DrawRectangle(x * TILE_SIZE, 
-                                      y * TILE_SIZE,
-                                      TILE_SIZE, 
-                                      TILE_SIZE,
-                                      RAYWHITE);
-                    }
+        }
+        for (int y = 0; y < SCREEN_HEIGTH; y++) {
+            for (int x = 0; x < SCREEN_WIDTH; x++) {
+                uint16_t display_index = y * SCREEN_WIDTH + x;
+                if (chip8.framebuffer[display_index] == true) {
+                    DrawRectangle(x * TILE_SIZE, 
+                                  y * TILE_SIZE,
+                                  TILE_SIZE, 
+                                  TILE_SIZE,
+                                  RAYWHITE);
                 }
             }
         }
@@ -214,7 +214,7 @@ int main(int argc, char* argv[]){
     }
 
     for (int i = 0; i < (64*32); i++) {
-        printf("px: %d value: %d ", i, chip8.framebuffer[i]);
+        printf("px:%d %d ", i, chip8.framebuffer[i]);
     }
     printf("\n");
     CloseWindow();
