@@ -2,9 +2,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-
 
 #define SCREEN_WIDTH 64
 #define SCREEN_HEIGTH 32
@@ -13,6 +13,7 @@
 #define FONT_SIZE 5 * 16
 #define PC_START_ADDR 0x200
 #define FONT_ADDR 0x50
+#define CPU_MULT 15 // SETS CPU SPEED. MULTIPLY BY 60 TO GET ACTUAL SPEED
 
 struct chip8_t {
     uint8_t memory[4096];
@@ -90,10 +91,6 @@ void inst_5xy0(struct chip8_t* chip8) {
     if(chip8->V[chip8->X] == chip8->V[chip8->Y]) chip8->PC += 2;
 }
 
-void inst_9xy0(struct chip8_t* chip8) {
-    if(chip8->V[chip8->X] != chip8->V[chip8->Y]) chip8->PC += 2;
-}
-
 void inst_6xnn(struct chip8_t* chip8) {
     chip8->V[chip8->X] = chip8->NN;
 }
@@ -131,20 +128,36 @@ void inst_8xy5(struct chip8_t* chip8) {
     if (chip8->V[chip8->X] < chip8->V[chip8->Y] ) chip8->V[0xf] = 0;
     chip8->V[chip8->X] -= chip8->V[chip8->Y];
 }
+
 void inst_8xy6(struct chip8_t* chip8) {
     // WIP: SETUP FLAG TO CONTROL BEHAVIOUR OF THIS INSTRUCTION
     // chip8->V[chip8->X] = chip8->V[chip8->Y];
-    if (chip8->V[])
+    if ((chip8->V[chip8->X] & 0x01) == 0x01) chip8->V[0xf] = 1;
     chip8->V[chip8->X] = chip8->V[chip8->X] >> 1;
 }
+
 void inst_8xy7(struct chip8_t* chip8) {
     chip8->V[0xf] = 1;
     if (chip8->V[chip8->X] > chip8->V[chip8->Y] ) chip8->V[0xf] = 0;
     chip8->V[chip8->X] = chip8->V[chip8->Y] - chip8->V[chip8->X];
 }
 
+void inst_9xy0(struct chip8_t* chip8) {
+    if(chip8->V[chip8->X] != chip8->V[chip8->Y]) chip8->PC += 2;
+}
+
 void inst_annn(struct chip8_t* chip8) {
     chip8->I = chip8->NNN;
+}
+
+void inst_bnnn(struct chip8_t* chip8) {
+    // OPTIONAL: IMPLEMENT BXNN INSTRUCTION AND CHANGE BEHAVIOUR OF THIS 
+    // CALL DEPENDING ON FLAG
+    chip8->PC = chip8->NNN + chip8->V[0x0];
+}
+
+void inst_cxnn(struct chip8_t* chip8) {
+    chip8->V[chip8->X] = (rand() % 256) & chip8->NN;
 }
 
 void inst_dxyn(struct chip8_t* chip8) {
@@ -197,8 +210,8 @@ void chip8_cycle(struct chip8_t* chip8) {
     chip8->N = opcode & 0x000F; // Third Nibble 
 
     printf("PC: %04X OP: %04X I: %04X V0:%02X V1:%02X\n", 
-       chip8->PC, opcode, chip8->I, chip8->V[0], chip8->V[1]);
-    
+           chip8->PC, opcode, chip8->I, chip8->V[0], chip8->V[1]);
+
     switch ((opcode >> 12) & 0x0F) { 
         // READ FIRST NIBBLE
         case 0x00:
@@ -217,11 +230,51 @@ void chip8_cycle(struct chip8_t* chip8) {
         case 0x02:
             inst_2nnn(chip8);
             break;
+        case 0x03:
+            inst_3xnn(chip8);
+            break;
+        case 0x04:
+            inst_4xnn(chip8);
+            break;
+        case 0x05:
+            inst_5xy0(chip8);
+            break;
         case 0x06:
             inst_6xnn(chip8);
             break;
         case 0x07:
             inst_7xnn(chip8);
+            break;
+        case 0x08:
+            switch (chip8->N) {
+                case 0x01:
+                    inst_8xy1(chip8);
+                    break;
+                case 0x02: 
+                    inst_8xy2(chip8);
+                    break;
+                case 0x03:
+                    inst_8xy3(chip8);
+                    break;
+                case 0x04:
+                    inst_8xy4(chip8);
+                    break;
+                case 0x05:
+                    inst_8xy5(chip8);
+                    break;
+                case 0x06:
+                    inst_8xy6(chip8);
+                    break;
+                case 0x07:
+                    inst_8xy7(chip8);
+                    break;
+                // case 0x0e:
+                //     inst_8xye(chip8);
+                //     break;
+            }
+            break;
+        case 0x09:
+            inst_9xy0(chip8);
             break;
         case 0x0a:
             inst_annn(chip8);
@@ -230,7 +283,6 @@ void chip8_cycle(struct chip8_t* chip8) {
             inst_dxyn(chip8);
             break;
     }
-
 }
 
 void chip8_init(struct chip8_t *chip8) {
@@ -241,23 +293,23 @@ void chip8_init(struct chip8_t *chip8) {
 
     chip8->stack_pointer = 0;
 
-    //Keypad init
-    chip8->keypad[0] = KEY_ONE;
-    chip8->keypad[1] = KEY_TWO;
-    chip8->keypad[2] = KEY_THREE;
-    chip8->keypad[3] = KEY_FOUR;
-    chip8->keypad[4] = KEY_Q;
-    chip8->keypad[5] = KEY_W;
-    chip8->keypad[6] = KEY_E;
-    chip8->keypad[7] = KEY_R;
-    chip8->keypad[8] = KEY_A;
-    chip8->keypad[9] = KEY_S;
-    chip8->keypad[10] = KEY_D;
-    chip8->keypad[11] = KEY_F;
-    chip8->keypad[12] = KEY_Z;
-    chip8->keypad[13] = KEY_X;
-    chip8->keypad[14] = KEY_C;
-    chip8->keypad[15] = KEY_V;
+    // Keypad init (BULLSHIT)
+    // chip8->keypad[0] = KEY_ONE;
+    // chip8->keypad[1] = KEY_TWO;
+    // chip8->keypad[2] = KEY_THREE;
+    // chip8->keypad[3] = KEY_FOUR;
+    // chip8->keypad[4] = KEY_Q;
+    // chip8->keypad[5] = KEY_W;
+    // chip8->keypad[6] = KEY_E;
+    // chip8->keypad[7] = KEY_R;
+    // chip8->keypad[8] = KEY_A;
+    // chip8->keypad[9] = KEY_S;
+    // chip8->keypad[10] = KEY_D;
+    // chip8->keypad[11] = KEY_F;
+    // chip8->keypad[12] = KEY_Z;
+    // chip8->keypad[13] = KEY_X;
+    // chip8->keypad[14] = KEY_C;
+    // chip8->keypad[15] = KEY_V;
 }
 
 int main(int argc, char* argv[]){
@@ -283,7 +335,7 @@ int main(int argc, char* argv[]){
     while (!WindowShouldClose()) {
         BeginDrawing();
         ClearBackground(BLACK);
-        for (int clock_count = 0; clock_count < 15; clock_count++){
+        for (int clock_count = 0; clock_count < CPU_MULT; clock_count++){
             chip8_cycle(&chip8);
         }
         for (int y = 0; y < SCREEN_HEIGTH; y++) {
@@ -294,7 +346,7 @@ int main(int argc, char* argv[]){
                                   y * TILE_SIZE,
                                   TILE_SIZE, 
                                   TILE_SIZE,
-                                  RAYWHITE);
+                                  GREEN);
                 }
             }
         }
