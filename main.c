@@ -57,16 +57,41 @@ uint8_t fontdata[FONT_SIZE] = {
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
 
+
+
 void inst_00e0(struct chip8_t* chip8) {
     memset(chip8->framebuffer, 0, sizeof(chip8->framebuffer));
 }
 
 void inst_00ee(struct chip8_t* chip8) {
-
+    chip8->PC = chip8->stack[chip8->stack_pointer - 1];
+    chip8->stack_pointer--;
 }
 
 void inst_1nnn(struct chip8_t* chip8) {
     chip8->PC = chip8->NNN;
+}
+
+void inst_2nnn(struct chip8_t* chip8) {
+    chip8->stack[chip8->stack_pointer] = chip8->PC;
+    chip8->stack_pointer++;
+    chip8->PC  = chip8->NNN;
+}
+
+void inst_3xnn(struct chip8_t* chip8) {
+    if(chip8->V[chip8->X] == chip8->NN) chip8->PC += 2;
+}
+
+void inst_4xnn(struct chip8_t* chip8) {
+    if(chip8->V[chip8->X] != chip8->NN) chip8->PC += 2;
+}
+
+void inst_5xy0(struct chip8_t* chip8) {
+    if(chip8->V[chip8->X] == chip8->V[chip8->Y]) chip8->PC += 2;
+}
+
+void inst_9xy0(struct chip8_t* chip8) {
+    if(chip8->V[chip8->X] != chip8->V[chip8->Y]) chip8->PC += 2;
 }
 
 void inst_6xnn(struct chip8_t* chip8) {
@@ -75,6 +100,47 @@ void inst_6xnn(struct chip8_t* chip8) {
 
 void inst_7xnn(struct chip8_t* chip8) {
     chip8->V[chip8->X] += chip8->NN;
+}
+
+void inst_8xy0(struct chip8_t* chip8) {
+    chip8->V[chip8->X] = chip8->V[chip8->Y];
+}
+
+void inst_8xy1(struct chip8_t* chip8) {
+    chip8->V[chip8->X] |= chip8->V[chip8->Y];
+}
+
+void inst_8xy2(struct chip8_t* chip8) {
+    chip8->V[chip8->X] &= chip8->V[chip8->Y];
+}
+
+void inst_8xy3(struct chip8_t* chip8) {
+    chip8->V[chip8->X] ^= chip8->V[chip8->Y];
+}
+
+void inst_8xy4(struct chip8_t* chip8) {
+    if ((chip8->V[chip8->X] += chip8->V[chip8->Y]) > 255){ 
+        chip8->V[0xf] = 1;
+    } else {
+        chip8->V[0xf] = 0;
+    }
+}
+
+void inst_8xy5(struct chip8_t* chip8) {
+    chip8->V[0xf] = 1;
+    if (chip8->V[chip8->X] < chip8->V[chip8->Y] ) chip8->V[0xf] = 0;
+    chip8->V[chip8->X] -= chip8->V[chip8->Y];
+}
+void inst_8xy6(struct chip8_t* chip8) {
+    // WIP: SETUP FLAG TO CONTROL BEHAVIOUR OF THIS INSTRUCTION
+    // chip8->V[chip8->X] = chip8->V[chip8->Y];
+    if (chip8->V[])
+    chip8->V[chip8->X] = chip8->V[chip8->X] >> 1;
+}
+void inst_8xy7(struct chip8_t* chip8) {
+    chip8->V[0xf] = 1;
+    if (chip8->V[chip8->X] > chip8->V[chip8->Y] ) chip8->V[0xf] = 0;
+    chip8->V[chip8->X] = chip8->V[chip8->Y] - chip8->V[chip8->X];
 }
 
 void inst_annn(struct chip8_t* chip8) {
@@ -117,6 +183,8 @@ void inst_dxyn(struct chip8_t* chip8) {
         }
     }
 }
+
+
 void chip8_cycle(struct chip8_t* chip8) {
     uint16_t opcode = (chip8->memory[chip8->PC]) << 8 | 
         (chip8->memory[chip8->PC+1]) ;
@@ -146,6 +214,9 @@ void chip8_cycle(struct chip8_t* chip8) {
         case 0x01:
             inst_1nnn(chip8);
             break;
+        case 0x02:
+            inst_2nnn(chip8);
+            break;
         case 0x06:
             inst_6xnn(chip8);
             break;
@@ -170,6 +241,23 @@ void chip8_init(struct chip8_t *chip8) {
 
     chip8->stack_pointer = 0;
 
+    //Keypad init
+    chip8->keypad[0] = KEY_ONE;
+    chip8->keypad[1] = KEY_TWO;
+    chip8->keypad[2] = KEY_THREE;
+    chip8->keypad[3] = KEY_FOUR;
+    chip8->keypad[4] = KEY_Q;
+    chip8->keypad[5] = KEY_W;
+    chip8->keypad[6] = KEY_E;
+    chip8->keypad[7] = KEY_R;
+    chip8->keypad[8] = KEY_A;
+    chip8->keypad[9] = KEY_S;
+    chip8->keypad[10] = KEY_D;
+    chip8->keypad[11] = KEY_F;
+    chip8->keypad[12] = KEY_Z;
+    chip8->keypad[13] = KEY_X;
+    chip8->keypad[14] = KEY_C;
+    chip8->keypad[15] = KEY_V;
 }
 
 int main(int argc, char* argv[]){
