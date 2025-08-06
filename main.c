@@ -279,6 +279,12 @@ void chip8_cycle(struct chip8_t* chip8) {
         case 0x0a:
             inst_annn(chip8);
             break;
+        case 0x0b:
+            inst_bnnn(chip8);
+            break;
+        case 0x0c:
+            inst_cxnn(chip8);
+            break;
         case 0x0d:
             inst_dxyn(chip8);
             break;
@@ -353,10 +359,6 @@ int main(int argc, char* argv[]){
         EndDrawing();
     }
 
-    for (int i = 0; i < (64*32); i++) {
-        printf("px:%d %d ", i, chip8.framebuffer[i]);
-    }
-    printf("\n");
     CloseWindow();
     return 0;
 
